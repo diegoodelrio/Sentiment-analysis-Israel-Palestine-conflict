@@ -1,0 +1,1010 @@
+---
+title: "Trabajo Israel"
+output: pdf_document
+---
+
+```{r}
+
+library(rtweet) # Para poder obtener los tweets de Twitter (seguir esta alternativa)
+library(twitteR) # Para poder obtener los tweets de Twitter
+library(httpuv) # Para resolver los problemas de la liberia twitteR
+library(openssl) # Para resolver los problemas de la liberia twitteR
+library(tm) # Para editar el texto: quitar puntuacion, etc. 
+library(corpus) # Para analizar el corpus del texto
+library(tidytext) # Para hacer analisis de sentimiento
+library(tidyverse) # Para hacer analisis de sentimiento
+library(wordcloud) # Para hacer wordclouds
+library(wordcloud2) # Otra alternativa para hacer wordclouds
+library(RColorBrewer) # Para cambiar la gma de colores
+library(tidyr) # Para poder hacer un unnest tokens
+library(dplyr) # Para gestionar objetos en R
+library(purrr) # Para gestionar objetos en R
+library(stringr) # Para gestionar objetos en R
+library(scales) # Para gestionar objetos en R
+library(ggplot2) # Para realizar graficos
+#library(qdap) # Para conjuntos de palabras
+library(maps) # Para graficar los tweets
+library(readr) # Para grabar archivos csv
+library(rvest) # Para hacer Web scraping
+library(rebus) # Para resolver los problemas de Web scraping
+library(lubridate) # Para analisis temporal de los tweets
+library(igraph) # Para realizar redes de n-gramas
+
+
+library(syuzhet) # Para hacer analisis de sentimiento
+library(plyr) # Para gestionar objetos en R
+library(quanteda) # Para construir ma matriz tf-idf
+library(e1071) # Para ajustar un modelo SVM
+library(caret) # Algoritmos machine learning
+```
+
+```{r}
+dir("Trabajo Tema 4")
+```
+
+SCRIPT 1
+```{r}
+api_key             <- "vdIJRPxPadUFRDkNS2W4negMc"
+api_secret_key      <- "GeW7DLhVtREzQHLnXOkO8DMXlY77xjJ86t5HjFMjHgDBkdopgF"
+access_token        <- "1389174572277280768-q9TgFzhIKwUKzSzSIZCYobCtHWhmtw"
+access_secret       <- "tauaYQWFyRfnhPshMMCZ3Pdslbq21ARuEzZlzj6rkiXXz"
+```
+
+
+```{r}
+#descarga de tweets
+# tweets solo en ingles
+
+# tweets que contengan Palestina
+Palestine_tweets <- search_tweets2(q = "Palestine",n = 1500, retryonratelimit = T,lang = "en")
+Palestine_tweets$tema <- 'Palestine'
+Palestine_tweets<- Palestine_tweets[1:1500,]
+View(Palestine_tweets)
+rtweet::write_as_csv(Palestine_tweets,'Palestine_tweet.csv')
+
+# tweets que contengan Israel
+Israel_tweets <- search_tweets2(q = "Israel", n = 1500, retryonratelimit = T,lang = "en")
+Israel_tweets$tema <- 'Israel'
+Israel_tweets<- Israel_tweets[1:1500,]
+View(Israel_tweets)
+rtweet::write_as_csv(Israel_tweets,'Israel_tweets.csv')
+
+# tweets que contengan Hamas
+Hamas_tweets <- search_tweets2(q = "Hamas", n = 1500, retryonratelimit = T,lang = "en")
+Hamas_tweets$tema <- 'Hamas'
+Hamas_tweets<- Hamas_tweets[1:1500,]
+View(Hamas_tweets)
+rtweet::write_as_csv(Hamas_tweets,'Hamas_tweets.csv')
+```
+
+```{r}
+ts_plot(Palestine_tweets, "1 hours") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequencia de Tweets que incluya la palabra Palestine",
+    subtitle = "Tweets contados en intervalos de una hora",
+    caption = "\nFuente: Datos recolectados desde la API de Twitter"
+  )
+ts_plot(Israel_tweets, "1 hours") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequencia de Tweets que incluya la palabra Israel",
+    subtitle = "Tweets contados en intervalos de una hora",
+    caption = "\nFuente: Datos recolectados desde la API de Twitter"
+  )
+ts_plot(Hamas_tweets, "1 hours") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequencia de Tweets que incluya la palabra Hamas",
+    subtitle = "Tweets contados en intervalos de una hora",
+    caption = "\nFuente: Datos recolectados desde la API de Twitter"
+  )
+```
+
+
+```{r}
+#cargamos los datos 
+Palestine_tweets<- rtweet::read_twitter_csv('Palestine_tweet.csv')
+Israel_tweets<- rtweet::read_twitter_csv('Israel_tweets.csv')
+Hamas_tweets<- rtweet::read_twitter_csv('Hamas_tweets.csv')
+```
+
+```{r}
+Palestine_tweets %>%
+  ggplot(aes(location)) +
+  geom_bar() + coord_flip() +
+  labs(x = "Frecuencia",
+       y = "Localizacion",
+       title = "Palestine Tweets - localizacion")
+
+Israel_tweets %>%
+  ggplot(aes(location)) +
+  geom_bar() + coord_flip() +
+  labs(x = "Frecuencia",
+       y = "Localizacion",
+       title = "Israel Tweets - localizacion")
+
+Hamas_tweets %>%
+  ggplot(aes(location)) +
+  geom_bar() + coord_flip() +
+  labs(x = "Frecuencia",
+       y = "Localizacion",
+       title = "Hamas Tweets - localizacion")
+```
+
+
+
+```{r}
+#mapa de frecuencia considerando solo las localizaciones top (> 20 usuarios) 
+Palestine_tweets %>%
+  count(location, sort = TRUE) %>%
+  mutate(location = reorder(location, n)) %>%
+  top_n(20) %>%
+  ggplot(aes(x = location, y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Localizacion",
+       y = "Frecuencia",
+       title = "Palestine Tweets - localizacion top 20")
+
+Israel_tweets %>%
+  count(location, sort = TRUE) %>%
+  mutate(location = reorder(location, n)) %>%
+  top_n(20) %>%
+  ggplot(aes(x = location, y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Localizacion",
+       y = "Frecuencia",
+       title = "Israel Tweets - localizacion top 20")
+
+Hamas_tweets %>%
+  count(location, sort = TRUE) %>%
+  mutate(location = reorder(location, n)) %>%
+  top_n(20) %>%
+  ggplot(aes(x = location, y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Localizacion",
+       y = "Frecuencia",
+       title = "Hamas Tweets - localizacion top 20")
+```
+
+```{r}
+# Grafico dinamico: los tweets de Palestina (puntos geolocalizacion)
+datos_map<-cbind.data.frame(Palestine_tweets$lng,Palestine_tweets$lat)
+datos_map<-na.omit(datos_map)
+leaflet(data=datos_map) %>%
+  addTiles()%>%  
+  addMarkers(data=datos_map,lng=~Palestine_tweets$lng, lat=~Palestine_tweets$lat)
+
+# Grafico dinamico: los tweets de Israel (puntos geolocalizacion)
+datos_map_1<-cbind.data.frame(Israel_tweets$lng,Israel_tweets$lat)
+datos_map_1<-na.omit(datos_map_1)
+leaflet(data=datos_map_1) %>%
+  addTiles()%>%  
+  addMarkers(data=datos_map_1,lng=~Israel_tweets$lng, lat=~Israel_tweets$lat)
+
+# Grafico dinamico: los tweets de Hamas (puntos geolocalizacion)
+datos_map_2<-cbind.data.frame(Hamas_tweets$lng,Hamas_tweets$lat)
+datos_map_2<-na.omit(datos_map_2)
+leaflet(data=datos_map_2) %>%
+  addTiles()%>%  
+  addMarkers(data=datos_map_2,lng=~Hamas_tweets$lng, lat=~Hamas_tweets$lat)
+
+```
+
+```{r}
+
+#LIMPIEZA Y TOKENIZACION DE LOS DATOS 
+
+limpiar_tokenizar <- function(texto){
+  
+  # Primero se convierte todo el texto a minusculas
+  nuevo_texto <- tolower(texto)
+  
+  # Eliminamos las paginas web (palabras que empiezan por "http." seguidas 
+  # de cualquier cosa que no sea un espacio)
+  nuevo_texto <- str_replace_all(nuevo_texto,"http\\S*", "")
+  
+  # Eliminamos los signos de puntuacion
+  nuevo_texto <- str_replace_all(nuevo_texto,"[[:punct:]]", " ")
+  
+  # Eliminamos los numeros
+  nuevo_texto <- str_replace_all(nuevo_texto,"[[:digit:]]", " ")
+  
+  # Eliminamos los espacios en blanco multiples
+  nuevo_texto <- str_replace_all(nuevo_texto,"[\\s]+", " ")
+  
+  # Realizamos el proceso de tokenizacion por palabras individuales
+  nuevo_texto <- str_split(nuevo_texto, " ")[[1]]
+  
+  # Finalmente eliminamos los tokens con una longitud < 2
+  nuevo_texto <- keep(.x = nuevo_texto, .p = function(x){str_length(x) > 1})
+  return(nuevo_texto)
+}
+
+#cargamos los datos 
+Palestine_tweet<- rtweet::read_twitter_csv('Palestine_tweet.csv')
+Israel_tweets<- rtweet::read_twitter_csv('Israel_tweets.csv')
+Hamas_tweets<- rtweet::read_twitter_csv('Hamas_tweets.csv')
+
+tweets <- bind_rows(Palestine_tweet, Israel_tweets, Hamas_tweets)
+
+# De entre toda la informacion disponible,autor del tweet, fecha de publicacion, identificador del tweet y contenido.
+tweets <- tweets %>% select(screen_name, created_at, status_id, text, tema)
+tweets <- tweets %>% dplyr::rename(autor = screen_name, fecha = created_at, texto = text, tweet_id = status_id)
+
+# Aplicamos la funcion de limpieza y tokenizacion a cada tweet analizado 
+tweets <- tweets %>% dplyr::mutate(texto_tokenizado = purrr::map(.x = tweets$texto, .f = limpiar_tokenizar))
+
+tweets_tidy <- tweets %>% select(-texto) %>% tidyr::unnest(cols = c(texto_tokenizado))
+tweets_tidy <- tweets_tidy %>% dplyr::rename(token = texto_tokenizado)
+head(tweets_tidy) 
+```
+
+ANALISIS EXPLORATORIO
+```{r}
+#analisis de la distribucion temporal de los tweets
+
+ggplot(tweets, aes(x = as.Date(fecha), fill = tema)) +
+  geom_histogram(position = "identity", bins = 20, show.legend = FALSE) +
+  scale_x_date(date_labels = "%m-%Y", date_breaks = "5 month") +
+  labs(x = "fecha de publicacion", y = "numero de tweets") +
+  facet_wrap(~ autor, ncol = 1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+ 
+tweets$fecha <- strptime(as.character(tweets$fecha), "%Y-%m-%d %H:%M:%OS")
+tweets_mes_anyo <- tweets %>% mutate(mes_anyo = format(fecha, "%Y-%m"))
+tweets_mes_anyo %>% group_by(tema, mes_anyo) %>% dplyr::summarise(n = n()) %>%
+  ggplot(aes(x = mes_anyo, y = n, color = tema)) +
+  geom_line(aes(group = tema)) +
+  labs(title = "Número de tweets publicados", x = "fecha de publicación",
+       y = "número de tweets") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, size = 6),
+        legend.position = "bottom")
+```
+
+```{r}
+# Fecuencia de palabras
+
+# A la hora de entender que caracteriza la escritura de cada usuario, es interesante estudiar que palabras emplea, 
+# con que frecuencia, asi como el significado de las mismas. Nos centraremos en 7 indicadores en particular.
+
+# 3.2.1 Total de palabras utilizadas por cada usuario
+tweets_tidy %>% group_by(tema) %>% dplyr::summarise(n = n()) 
+tweets_tidy %>%  ggplot(aes(x = tema)) + geom_bar() + coord_flip() + theme_bw()
+
+# 3.2.2 Palabras distintas utilizadas por cada usuario
+tweets_tidy %>% select(tema, token) %>% distinct() %>%  group_by(tema) %>%
+  dplyr::summarise(palabras_distintas = n())
+tweets_tidy %>% select(tema, token) %>% distinct() %>%
+  ggplot(aes(x = tema)) + geom_bar() + coord_flip() + theme_bw()
+
+# Teneis que comparar el total de palabras utilizadas vs palabras diferentes
+
+# 3.2.3 Longitud media de los tweets por usuario
+tweets_tidy %>% group_by(tema, tweet_id) %>% dplyr::summarise(longitud = n()) %>%                       
+  group_by(tema) %>% dplyr::summarise(media_longitud = mean(longitud), sd_longitud = sd(longitud))
+tweets_tidy %>% group_by(tema, tweet_id) %>% dplyr::summarise(longitud = n()) %>% group_by(tema) %>%
+  dplyr::summarise(media_longitud = mean(longitud), sd_longitud = sd(longitud)) %>%
+  ggplot(aes(x = tema, y = media_longitud)) + geom_col() +
+  geom_errorbar(aes(ymin = media_longitud - sd_longitud,
+                    ymax = media_longitud + sd_longitud)) + coord_flip() + theme_bw()
+
+# 3.2.4 Palabras mas utilizadas por usuario
+tweets_tidy %>% group_by(tema, token) %>% dplyr::count(token) %>% group_by(tema) %>%
+  dplyr::top_n(10, n) %>% dplyr::arrange(tema, desc(n)) %>% print(n=30)
+
+# 3.2.5 Stop words
+lista_stopwords <- c('me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves',
+                     'you','your', 'yours', 'yourself', 'yourselves', 'he', 'him','his',
+                     'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself',
+                     'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which',
+                     'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are',
+                     'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+                     'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and',
+                     'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at',
+                     'by', 'for', 'with', 'about', 'against', 'between', 'into',
+                     'through', 'during', 'before', 'after', 'above', 'below', 'to',
+                     'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under',
+                     'again', 'further', 'then', 'once', 'here', 'there', 'when',
+                     'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more',
+                     'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+                     'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will',
+                     'just', 'don', 'should', 'now', 'd', 'll', 'm', 'o', 're', 've',
+                     'y', 'ain', 'aren', 'couldn', 'didn', 'doesn', 'hadn', 'hasn',
+                     'haven', 'isn', 'ma', 'mightn', 'mustn', 'needn', 'shan',
+                     'shouldn', 'wasn', 'weren', 'won', 'wouldn','i', 'the', 'don t', 'of', 'in')
+
+# Se anade el termino amp al listado de stopwords que procede de la etiqueta html: amp
+lista_stopwords <- c(lista_stopwords, "amp")
+
+tweets_tidy <- tweets_tidy %>% filter(!(token %in% lista_stopwords))
+
+# Nuevamente vemos las palabras mas utilizadas por usuario tras eliminar las stopwords
+tweets_tidy %>% group_by(tema, token) %>% dplyr::count(token) %>% group_by(tema) %>%
+  dplyr::top_n(10, n) %>% dplyr::arrange(tema, desc(n)) %>% print(n=30)
+
+# 3.2.6 Representacion grafica de las frecuencias
+tweets_tidy %>% group_by(tema, token) %>% dplyr::count(token) %>% group_by(tema) %>%
+  dplyr::top_n(10, n) %>% dplyr::arrange(tema, desc(n)) %>%
+  ggplot(aes(x = reorder(token,n), y = n, fill = tema)) +
+  geom_col() +
+  theme_bw() +
+  labs(y = "", x = "") +
+  theme(legend.position = "none") +
+  coord_flip() +
+  facet_wrap(~tema,scales = "free", ncol = 1, drop = TRUE)
+
+#3.2.7 WORDCLOUD
+#Palestina
+tweets1 <- Palestine_tweets %>% select(screen_name, created_at, status_id, text)
+tweets11 <- tweets1[,c("text","created_at","screen_name")]
+tweets11$text2 = str_replace_all(tweets11$text, "[^0-9a-zA-Z??????????????????????????#@]", " ")
+tweets_corpus = tm::Corpus(VectorSource(tweets11$text2))
+tdm <- TermDocumentMatrix(tweets_corpus,
+                          control = list(removePunctuation = TRUE,
+                                         stopwords = c("amp", "https",tm::stopwords(kind = "en")),
+                                         removeNumbers = TRUE, tolower = TRUE))
+m <- as.matrix(tdm)
+word_freqs <- sort(rowSums(m), decreasing=TRUE) 
+dm <- data.frame(word=names(word_freqs), freq=word_freqs, stringsAsFactors = FALSE)
+wordcloud2(data=dm)
+
+#Israel
+tweets2 <- Israel_tweets %>% select(screen_name, created_at, status_id, text)
+tweets22 <- tweets2[,c("text","created_at","screen_name")]
+tweets22$text3 = str_replace_all(tweets22$text, "[^0-9a-zA-Z??????????????????????????#@]", " ")
+tweets_corpus = tm::Corpus(VectorSource(tweets22$text3))
+tdm <- TermDocumentMatrix(tweets_corpus,
+                          control = list(removePunctuation = TRUE,
+                                         stopwords = c("amp", "https",tm::stopwords(kind = "en")),
+                                         removeNumbers = TRUE, tolower = TRUE))
+m <- as.matrix(tdm)
+word_freqs <- sort(rowSums(m), decreasing=TRUE) 
+dm <- data.frame(word=names(word_freqs), freq=word_freqs, stringsAsFactors = FALSE)
+wordcloud2(data=dm)
+
+#Hamas
+tweets3 <- Hamas_tweets %>% select(screen_name, created_at, status_id, text)
+tweets33 <- tweets3[,c("text","created_at","screen_name")]
+tweets33$text4 = str_replace_all(tweets33$text, "[^0-9a-zA-Z??????????????????????????#@]", " ")
+tweets_corpus = tm::Corpus(VectorSource(tweets33$text4))
+tdm <- TermDocumentMatrix(tweets_corpus,
+                          control = list(removePunctuation = TRUE,
+                                         stopwords = c("amp", "https",tm::stopwords(kind = "en")),
+                                         removeNumbers = TRUE, tolower = TRUE))
+m <- as.matrix(tdm)
+word_freqs <- sort(rowSums(m), decreasing=TRUE) 
+dm <- data.frame(word=names(word_freqs), freq=word_freqs, stringsAsFactors = FALSE)
+wordcloud2(data=dm)
+```
+
+```{r}
+# 3.3 Correlacion entre usuarios por palabras utilizadas
+
+tweets_spread <- tweets_tidy %>% group_by(autor, token) %>% dplyr::count(token) %>%
+  spread(key = autor, value = n, fill = NA, drop = TRUE)
+
+# En este caso, las variables a correlacionar son los usuarios.
+cor.test(~ Palestine_tweets + Israel_tweets + Hamas_tweets, method = "pearson", data = tweets_spread)
+
+# Graficamente podemos ver esa correlacion del siguiente modo (localizar palabras)
+ggplot(tweets_spread, aes(Palestine_tweets, Israel_tweets,Hamas_tweets)) +
+  geom_jitter(alpha = 0.1, size = 2.5, width = 0.25, height = 0.25) +
+  geom_text(aes(label = token), check_overlap = TRUE, vjust = 1.5) +
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  geom_abline(color = "red") +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank())
+
+palabras_comunes <- dplyr::intersect(tweets_tidy %>% filter(tema=="Palestine") %>%
+                                       select(token), tweets_tidy %>% filter(tema=="Israel") %>%
+                                       select(token)) %>% nrow()
+paste("Numero de palabras comunes entre Palestine y Israel:", palabras_comunes)
+```
+
+
+```{r}
+#3.4 Comparacion en el uso de palabra
+
+# En este punto estudiaremos que palabras se utilizan de forma mas diferenciada por cada 
+# usuario, es decir, palabras que utiliza mucho un autor y que no utiliza el otro.
+# Una forma de hacer este analisis es mediante el log of odds ratio (cociente de probabilidades) 
+# de las frecuencias.
+
+# Para realizar este calculo es necesario que, para todos los usuarios, se cuantifique 
+# la frecuencia de cada una de las palabras que aparecen en el conjunto de tweets, es decir, 
+# si un autor no ha utilizado una de las palabras que si ha utilizado otro, debe aparecer 
+# esa palabra en su registro con frecuencia igual a cero. Hay una serie de pasos:
+
+# Pivotaje y despivotaje
+tweets_spread <- tweets_tidy %>% group_by(autor, token) %>% dplyr::count(token) %>%
+  spread(key = autor, value = n, fill = 0, drop = TRUE)
+tweets_unpivot <- tweets_spread %>% gather(key = "tema", value = "n", -token)
+
+# Seleccion de los temas
+tweets_unpivot <- tweets_unpivot %>% filter(tema %in% c("Palestine","Israel","Hamas"))
+
+# Se anade el total de palabras de cada autor
+tweets_unpivot <- tweets_unpivot %>% left_join(tweets_tidy %>% group_by(tema) %>%
+                                                 dplyr::summarise(N = n()), by = "tema")
+
+
+# Calculo de odds y log of odds de cada palabra
+tweets_logOdds <- tweets_unpivot %>%  mutate(odds = (n + 1) / (N + 1))
+tweets_logOdds <- tweets_logOdds %>% select(tema, token, odds) %>% spread(key = tema, value = odds)
+tweets_logOdds <- tweets_logOdds %>%  mutate(log_odds = log(Palestine_tweets /Israel_tweets),abs_log_odds = abs(log_odds))
+
+tweets_logOdds <- tweets_logOdds %>% mutate(tema = if_else(log_odds > 0,
+                                                                      "Palestine", "Israel"))
+tweets_logOdds %>% arrange(desc(abs_log_odds)) %>% head()
+
+# Ahora representamos, por ejemplo, las 30 palabras mas diferenciadas ya que 
+# esas palabras posiblemente tendran mucho peso a la hora de clasificar los tweets
+tweets_logOdds %>% group_by(autor_frecuente) %>% top_n(15, abs_log_odds) %>%
+  ggplot(aes(x = reorder(token, log_odds), y = log_odds, fill = autor_frecuente)) +
+  geom_col() + labs(x = "palabra", y = "log odds ratio (Palestine / Israel)") +
+  coord_flip() + theme_bw()
+```
+
+```{r}
+# 3.5 Relacion entre palabras
+
+# En todos los analisis anteriores, se han considerado a las palabras como unidades 
+# individuales e independientes. Esto es una simplificacion bastante grande, ya que en 
+# realidad el lenguaje se crea por combinaciones no aleatorias de palabras, es decir, 
+# determinadas palabras tienden a utilizarse de forma conjunta. A continuacion se 
+# muestran algunas formas de calcular, identificar y visualizar relaciones entre palabras.
+
+# Lo que vamos a hacer es dividir el texto por n-gramas, siendo cada n-grama una secuencia 
+# de n palabras consecutivas. Para conseguir los n-gramas, se tiene que eliminar la tokenizacion 
+# de la funcion creada 'limpiar_tokenizar'. Luego, crearemos otra funcion en este caso.
+
+
+limpiar <- function(texto){
+  
+  # Se convierte todo el texto a minusculas
+  nuevo_texto <- tolower(texto)
+  
+  # Eliminacion de paginas web (palabras que empiezan por "http." seguidas de cualquier 
+  # cosa que no sea un espacio)
+  nuevo_texto <- str_replace_all(nuevo_texto,"http\\S*", "")
+  
+  # Eliminacion de signos de puntuacion
+  nuevo_texto <- str_replace_all(nuevo_texto,"[[:punct:]]", " ")
+  
+  # Eliminacion de numeros
+  nuevo_texto <- str_replace_all(nuevo_texto,"[[:digit:]]", " ")
+  
+  # Eliminacion de espacios en blanco multiples
+  nuevo_texto <- str_replace_all(nuevo_texto,"[\\s]+", " ")
+  
+  # Output
+  return(nuevo_texto)
+}
+
+# Obtenemos el bigramas (concatenacion de 2 palabras)
+bigramas <- tweets %>% mutate(texto = limpiar(texto)) %>%
+  select(texto) %>% unnest_tokens(input = texto, output = "bigrama",
+                                  token = "ngrams",n = 2, drop = TRUE)
+
+# Frecuencia de ocurrencias de cada bigrama
+bigramas %>% dplyr::count(bigrama, sort = TRUE)
+
+# Los bigramas mas frecuentes son los formados por stopwords. Como la relacion entre 
+# estas palabras no aporta informacion de interes, se procede a eliminar todos aquellos 
+# bigramas que contienen alguna stopword. Separacion de los bigramas 
+bigrams_separados <- bigramas %>% separate(bigrama, c("palabra1", "palabra2"), sep = " ")
+head(bigrams_separados)
+
+# Filtrado de los bigramas que contienen alguna stopword
+bigrams_separados <- bigrams_separados  %>%
+  filter(!palabra1 %in% lista_stopwords) %>%
+  filter(!palabra2 %in% lista_stopwords)
+
+# Union de las palabras para formar de nuevo los bigramas
+bigramas <- bigrams_separados %>%
+  unite(bigrama, palabra1, palabra2, sep = " ")
+
+# Identificamos ahora los bigramas mas frecuentes
+head(bigramas %>% dplyr::count(bigrama, sort = TRUE), 50)
+
+# Una forma mas visual e informativa de analizar las relaciones entre palabras es 
+# mediante el uso de redes de n-gramas.
+graph <- bigramas %>%
+  separate(bigrama, c("palabra1", "palabra2"), sep = " ") %>% 
+  dplyr::count(palabra1, palabra2, sort = TRUE) %>%
+  filter(n > 30) %>% graph_from_data_frame(directed = FALSE)
+
+plot(graph, vertex.label.font = 2,
+     vertex.label.color = "black",
+     vertex.label.cex = 0.7, edge.color = "gray85")
+
+```
+
+```{r}
+# 3.6 El estadistico td-idf 
+
+
+# Uno de los principales intereses en text mining es cuantificar la tematica de un texto, asi como 
+# la importancia de cada termino que lo forma. Una manera sencilla de medir la importancia de un termino 
+# dentro de un documento es utilizando la frecuencia con la que aparece (Term Frequency) que se denota por tf.
+
+# Esta aproximacion, aunque simple, tiene la limitacion de atribuir mucha importancia a aquellas palabras que 
+# aparecen muchas veces aunque no aporten informacion selectiva. Por ejemplo, si la palabra matematicas aparece 
+# 5 veces en un documento y la palabra pagina aparece 50, la segunda tendra 10 veces mas peso a pesar de que no 
+# aporte tanta informacion. 
+
+# Para solucionar este problema se pueden ponderar los valores tf multiplicandolos por la inversa de la frecuencia 
+# con la que el termino en cuestion aparece en el resto de documentos del corpus (Inverse Document Frequency) que 
+# se denota por idf. De esta forma, se consigue reducir el valor de aquellos terminos que aparecen en muchos 
+# documentos y que, por lo tanto, no aportan informacion selectiva.
+
+# Por tanto, el estadistico tf-idf mide como de importante es un termino en un documento teniendo en cuenta la frecuencia 
+# con la que ese termino aparece en otros documentos. Veamos como lo calculamos. Primero, calcularemos el tf, luego el idf
+# y por ultimo el estadístico tf-idf.
+
+# Numero de veces que aparece cada termino por tweet
+tweets_tf <- tweets_tidy %>% group_by(tweet_id, token) %>% dplyr::summarise(n = n())
+
+# Se anade una columna con el total de terminos por tweet
+tweets_tf <- tweets_tf %>% mutate(total_n = sum(n))
+
+# Se calcula el tf (Term Frequency) de cada palabra. Es decir, tf(término) = n(término) / longitud documento
+tweets_tf <- tweets_tf %>% mutate(tf = n / total_n )
+head(tweets_tf)
+
+# Comprobamos el numero total de documentos (tweets)
+total_documentos = tweets_tidy$tweet_id %>% unique() %>% length()
+total_documentos
+
+# Numero de documentos en los que aparece cada termino
+tweets_idf <- tweets_tidy %>% distinct(token, tweet_id) %>% group_by(token) %>%
+  dplyr::summarise(n_documentos = n())
+
+# Se calcula el idf (Inverse Document Frequency) de cada palabras. Es decir, idf (término) = log (n(documentos)/nd(ocumentos con el término))
+tweets_idf <- tweets_idf %>% mutate(idf = n_documentos/ total_documentos) %>%
+  arrange(desc(idf))
+head(tweets_idf)
+
+# Por ultimo, se obtiene el estadistico tf-idf
+tweets_tf_idf <- left_join(x = tweets_tf, y = tweets_idf, by = "token") %>% ungroup()
+tweets_tf_idf <- tweets_tf_idf %>% mutate(tf_idf = tf * idf) %>% select(-tweet_id) 
+View(tweets_tf_idf)
+
+# En este caso como podeis ver todos los terminos que aparecen una vez tienen el mismo valor de tf, 
+# sin embargo, dado que no todos los terminos aparecen con la misma frecuencia en el conjunto de todos los tweets, 
+# la correccion de idf es distinta para cada uno. Valores mas altos significan que tendran un mayor peso.
+
+```
+
+```{r}
+#ANALISIS DE SENTIMENTOS 
+
+# 2 Como analizar la opinion o polaridad sobre un individuo con datos de Twitter ----
+
+# El enfoque semantico se caracteriza por el uso de diccionarios de terminos (lexicons) con orientacion 
+# semantica de polaridad u opinion. Tipicamente los sistemas preprocesan el texto y lo dividen en palabras, 
+# con la apropiada eliminacion de las palabras de parada (stopwords). Luego, se comprueba la aparicion de 
+# los terminos del lexicon para asignar el valor de polaridad del texto mediante la suma del valores de 
+# polaridad de los terminos. 
+
+# En este primer ejemplo vamos a analizar el sentimiento de los tweets publicados 
+# En este caso, vamos a estudiar la opinion o polaridad sobre estos individuos con datos de Twitter.
+# La metodologia a seguir seria la siguiente (3 etapas):
+
+# 2.1 Sentimiento promedio de cada tweet ----
+
+# Empleamos la clasificacion positivo/negativo proporcionada por el diccionario bing (libreria tidytext)
+sentimientos <- get_sentiments(lexicon = "bing")
+head(sentimientos)
+
+# Para facilitar el calculo de sentimientos globales (autor, tweet…) se recodifican los sentimientos como 
+# +1 para positivo y -1 para negativo.
+sentimientos <- sentimientos %>% mutate(valor = if_else(sentiment == "negative", -1, 1))
+
+# Al disponer de los datos en formato tidy (una palabra por fila), mediante un inner join se anade a cada palabra 
+# su sentimiento y se filtran automaticamente todas aquellas palabras para las que no hay informacion disponible.
+tweets_sent <- inner_join(x = tweets_tidy, y = sentimientos,
+                          by = c("token" = "word"))
+
+# Se suman los sentimientos de las palabras que forman cada tweet.
+tweets_sent %>% group_by(tema, tweet_id) %>%
+  dplyr::summarise(sentimiento_promedio = sum(valor)) %>%
+  head()
+
+# 2.2 Porcentaje de tweets positivos, negativos y neutros por autor ----
+
+# Obtenemos ese porcentaje de tweets para cada autor. Vemos como los dos autores tienen un perfil muy similar. 
+# La gran mayoria de tweets son de tipo positivo. Este patron es comun en redes sociales, donde se suele participar 
+# mostrando aspectos o actividades positivas. Los usuarios no tienden a mostrar las cosas malas de sus vidas.
+tweets_sent %>% group_by(tema, tweet_id) %>%
+  dplyr::summarise(sentimiento_promedio = sum(valor)) %>%
+  group_by(tema) %>%
+  dplyr::summarise(positivos = 100 * sum(sentimiento_promedio > 0) / n(),
+                   neutros = 100 * sum(sentimiento_promedio == 0) / n(),
+                   negativos = 100 * sum(sentimiento_promedio  < 0) / n())
+
+# Podemos visualizarlo graficamente del siguiente modo
+tweets_sent %>% group_by(tema, tweet_id) %>%
+  dplyr::summarise(sentimiento_promedio = sum(valor)) %>%
+  group_by(tema) %>%
+  dplyr::summarise(positivos = 100*sum(sentimiento_promedio > 0) / n(),
+                   neutros = 100*sum(sentimiento_promedio == 0) / n(),
+                   negativos = 100*sum(sentimiento_promedio  < 0) / n()) %>%
+  ungroup() %>%
+  gather(key = "sentimiento", value = "valor", -tema) %>%
+  ggplot(aes(x = tema, y = valor, fill = sentimiento)) + 
+  geom_col(position = "dodge", color = "black") + coord_flip() +
+  theme_bw()
+
+# 2.3 Evolucion de los sentimientos en funcion del tiempo ----
+
+# A continuacion, se estudia como varia el sentimiento promedio de los tweets agrupados por intervalos 
+# de un mes para cada uno de los usuarios. Podemos ver como la distribucion del sentimiento promedio de 
+# los tweets se mantiene aproximadamente constante para los 2 usuarios. Existen ciertas oscilaciones, 
+# pero todas ellas dentro del rango de sentimiento POSITIVO.
+tweets_sent %>% mutate(anyo = year(fecha),
+                       mes = month(fecha),
+                       anyo_mes = ymd(paste(anyo, mes, sep="-"),truncated=2)) %>%
+  group_by(tema, anyo_mes) %>%
+  dplyr::summarise(sentimiento = mean(valor)) %>%
+  ungroup() %>%
+  ggplot(aes(x = anyo_mes, y = sentimiento, color = tema)) +
+  geom_point() + 
+  geom_smooth(formula = y ~ x, method = 'loess') + 
+  labs(x = "fecha de publicación") +
+  facet_wrap(~ tema, ncol = 1) +
+  theme_bw() +
+  theme(legend.position = "none")
+
+
+
+# En este otro ejemplo utilizaremos el diccionario nrc que clasifica cada palabra en uno o mas 
+# de los siguientes sentimientos: positivo, negativo, ira, anticipacion, asco, miedo, alegria, 
+# tristeza, sorpresa y confianza. 
+
+# La clasificacion de las emociones se basa en el NRC Word-Emotion Association Lexicon (tambien
+# conocido como EmoLex). La definición de NRC Emotion Lexicon extraida de http://saifmohammad.com/
+# WebPages/NRC-Emotion-Lexicon.htm es el siguiente. El NRC Emotion Lexicon es una lista de palabras 
+# en ingles y sus asociaciones con ocho emociones basicas (ira, miedo, expectativas-ilusión, confianza, 
+# sorpresa, tristeza, alegria y asco) y dos sentimientos (negativo y positivo).
+
+tweetsbg <- Palestine_tweets %>% select(screen_name, created_at, status_id, text, tema)
+tweetsbg <- tweetsbg %>% dplyr::rename(autor = screen_name, fecha = created_at, texto = text, tweet_id = status_id)
+resultado_nrc <- syuzhet::get_nrc_sentiment(tweetsbg$texto)
+head (resultado_nrc,10)
+
+# Podemos graficar los resultados del siguiente modo para los primeros 250 tweets (frecuencia palabras)
+td <- data.frame(t(resultado_nrc))
+td_new <- data.frame(rowSums(td[1:250]))
+names(td_new)[1] <- "count"
+td_new <- cbind("sentiment" = rownames(td_new), td_new)
+rownames(td_new) <- NULL
+td_new2<-td_new[1:8,]
+quickplot(sentiment, data=td_new2, weight=count, geom="bar", fill=sentiment, xlab="Emociones", ylab="Frecuencia")+ggtitle("Analisis sentimientos tweets de Palestine")
+
+# Otro grafico expresado en procentaje (valores relativos) 
+barplot(
+  sort(colSums(prop.table(resultado_nrc[, 1:8]))), 
+  horiz = TRUE, 
+  cex.names = 0.7, 
+  las = 1, 
+  main = "Emociones en los tweets de Palestine", xlab="Porcentaje"
+)
+
+tweetsbg <- Israel_tweets %>% select(screen_name, created_at, status_id, text, tema)
+tweetsbg <- tweetsbg %>% dplyr::rename(autor = screen_name, fecha = created_at, texto = text, tweet_id = status_id)
+resultado_nrc <- syuzhet::get_nrc_sentiment(tweetsbg$texto)
+head (resultado_nrc,10)
+
+# Podemos graficar los resultados del siguiente modo para los primeros 250 tweets (frecuencia palabras)
+td <- data.frame(t(resultado_nrc))
+td_new <- data.frame(rowSums(td[1:250]))
+names(td_new)[1] <- "count"
+td_new <- cbind("sentiment" = rownames(td_new), td_new)
+rownames(td_new) <- NULL
+td_new2<-td_new[1:8,]
+quickplot(sentiment, data=td_new2, weight=count, geom="bar", fill=sentiment, xlab="Emociones", ylab="Frecuencia")+ggtitle("Analisis sentimientos tweets de Israel")
+
+# Otro grafico expresado en procentaje (valores relativos) 
+barplot(
+  sort(colSums(prop.table(resultado_nrc[, 1:8]))), 
+  horiz = TRUE, 
+  cex.names = 0.7, 
+  las = 1, 
+  main = "Emociones en los tweets de Israel", xlab="Porcentaje"
+)
+
+tweetsbg <- Hamas_tweets %>% select(screen_name, created_at, status_id, text, tema)
+tweetsbg <- tweetsbg %>% dplyr::rename(autor = screen_name, fecha = created_at, texto = text, tweet_id = status_id)
+resultado_nrc <- syuzhet::get_nrc_sentiment(tweetsbg$texto)
+head (resultado_nrc,10)
+
+# Podemos graficar los resultados del siguiente modo para los primeros 250 tweets (frecuencia palabras)
+td <- data.frame(t(resultado_nrc))
+td_new <- data.frame(rowSums(td[1:250]))
+names(td_new)[1] <- "count"
+td_new <- cbind("sentiment" = rownames(td_new), td_new)
+rownames(td_new) <- NULL
+td_new2<-td_new[1:8,]
+quickplot(sentiment, data=td_new2, weight=count, geom="bar", fill=sentiment, xlab="Emociones", ylab="Frecuencia")+ggtitle("Analisis sentimientos tweets de Hamas")
+
+# Otro grafico expresado en procentaje (valores relativos) 
+barplot(
+  sort(colSums(prop.table(resultado_nrc[, 1:8]))), 
+  horiz = TRUE, 
+  cex.names = 0.7, 
+  las = 1, 
+  main = "Emociones en los tweets de Hamas", xlab="Porcentaje"
+)
+```
+
+```{r}
+#CLASIFICACION por SVM
+
+# 2 Como clasificar/predecir la autoria de un texto con datos de Twitter ----
+
+# Los enfoques basados en aprendizaje computacional consisten en entrenar un clasificador usando 
+# un algoritmo de aprendizaje supervisado a partir de una coleccion de textos anotados. Cada texto 
+# habitualmente se representa con un vector de palabras (bag of words) en combinacion con otro tipo 
+# de caracteristicas semanticas que intentan modelar la estructura sintactica de las frases. 
+
+# Los sistemas utilizan diversas tecnicas, aunque los mas populares son los clasificadores basados 
+# en SVM (Support Vector Machines), Random Forest y Redes Neuronales. Recordad que aqui estas tecnicas
+# no las utilizaremos para realizar REGRESIONES sino para problemas de CLASIFICACION.
+
+# En este primer ejemplo se construira un modelo de aprendizaje estadistico basado en maquinas de vector 
+# soporte (SVM) con el objetivo de predecir la autoria de los tweets. La metodologia a seguir sera la siguiente (5 etapas):
+
+# 2.1 Separación de los datos en entrenamiento y test ----
+
+# En todo proceso de aprendizaje estadistico es recomendable repartir las observaciones en un set de entrenamiento 
+# y otro de test. Esto permite evaluar la capacidad del modelo. Para este ejercicio se selecciona como test un 20% 
+# aleatorio de los tweets. Es importante fijar una semilla para poder replicar los resultados.
+set.seed(34)
+tweets_elon_ed <- bind_rows(Palestine_tweets, Israel_tweets, Hamas_tweets)
+tweets_elon_ed <- tweets_elon_ed %>% select(screen_name, created_at, status_id, text, tema)
+tweets_elon_ed <- tweets_elon_ed %>% dplyr::rename(autor = screen_name, fecha = created_at, texto = text, tweet_id = status_id)
+train          <- sample(x = 1:nrow(tweets_elon_ed), size = 0.8 * nrow(tweets_elon_ed))
+tweets_train   <- tweets_elon_ed[train, ]
+tweets_test    <- tweets_elon_ed[-train, ]
+
+# Es importante verificar que la proporcion de cada grupo es similar en el set de entrenamiento 
+table(tweets_train$tema) / length(tweets_train$tema)
+
+# Es importante verificar que la proporcion de cada grupo es similar en el set de test
+table(tweets_test$tema) / length(tweets_test$tema)
+
+# 2.2 Vectorización tf-idf ----
+
+# Limpieza y tokenizacion de los documentos de entrenamiento
+tweets_train$texto <- tweets_train$texto %>% purrr::map(.f = limpiar_tokenizar) %>%
+  purrr::map(.f = paste, collapse = " ") %>% unlist()
+
+# Creacion de la matriz documento-termino
+matriz_tfidf_train <- quanteda::dfm(x = tweets_train$texto, remove = lista_stopwords)
+
+# Se reduce la dimension de la matriz eliminando aquellos terminos que aparecen en menos de 5 documentos. 
+# Con esto se consigue eliminar ruido.
+matriz_tfidf_train <- dfm_trim(x = matriz_tfidf_train, min_docfreq = 5)
+
+# Conversion de los valores de la matriz a tf-idf
+matriz_tfidf_train <- quanteda::dfm_tfidf(matriz_tfidf_train, scheme_tf = "prop",
+                                          scheme_df = "inverse")
+matriz_tfidf_train
+
+# A la hora de trasformar los documentos de test, es importante proyectarlos en la misma matriz obtenida previamente con el 
+# set de entrenamiento. Esto es importante ya que, si en los documentos de test hay algun termino que no aparece en los de 
+# entrenamiento o viceversa, las dimensiones de cada matriz no coincidiran. Para evitar este problema, al crear la matriz tf-idf 
+# de test, se pasa como argumento dictionary el nombre de las columnas de la matriz tf-idf de entrenamiento. El argumento 
+# dictionary tiene que ser de tipo diccionario, la transformacion de un vector a un diccionario es un tanto compleja ya que tiene 
+# que convertirse primero a lista. Veamoslo en nuestro ejemplo.
+
+# Limpieza y tokenizacion de los documentos de test
+tweets_test$texto <- tweets_test$texto %>% purrr::map(.f = limpiar_tokenizar) %>%
+  purrr::map(.f = paste, collapse = " ") %>% unlist()
+
+# Identificacion de las dimensiones de la matriz de entrenamiento
+# Los objetos dm() son de clase S4, se accede a sus elementos mediante @
+dimensiones_matriz_train <- matriz_tfidf_train@Dimnames$features
+
+# Conversion de vector a diccionario pasando por lista
+dimensiones_matriz_train        <- as.list(dimensiones_matriz_train)
+names(dimensiones_matriz_train) <- unlist(dimensiones_matriz_train)
+dimensiones_matriz_train        <- dictionary(dimensiones_matriz_train)
+
+# Proyeccion de los documentos de test
+matriz_tfidf_test <- quanteda::dfm(x = tweets_test$texto,
+                                   dictionary = dimensiones_matriz_train)
+matriz_tfidf_test <- quanteda::dfm_tfidf(matriz_tfidf_test, scheme_tf = "prop",
+                                         scheme_df = "inverse")
+matriz_tfidf_test
+
+# Por utlimo se comprueba que las dimensiones de ambas matrices sean iguales.
+all(colnames(matriz_tfidf_test) == colnames(matriz_tfidf_train))
+
+# 2.3 Estimación y ajuste del modelo SVM lineal ----
+
+# Utilizaremos un modelo SVM para clasificar nuestros tweets. Este metodo de aprendizaje estadistico suele dar buenos resultados 
+# en clasificacion. Para una informacion mas detallada consultar el libro que os he subido a la intranet Support Vector Machines.
+modelo_svm <- e1071::svm(x = matriz_tfidf_train, y = as.factor(tweets_train$autor),
+                         kernel = "linear", cost = 1, scale = TRUE,
+                         type = "C-classification")
+modelo_svm
+
+# 2.4 Predicciones y errores del modelo SVM lineal ----
+
+# Empleando el modelo entrenado en el paso anterior se predice la autoria de los tweets de test.
+predicciones <- predict(object = modelo_svm, newdata = matriz_tfidf_test)
+
+# Calculamos los errores de clasificacion
+clasificaciones_erroneas <- sum(tweets_test$autor != predicciones)
+error <- 100 * mean(tweets_test$autor != predicciones)
+paste("Numero de clasificaciones incorrectas =", clasificaciones_erroneas)
+paste("Porcentaje de error =", round(error,2), "%")
+
+# 2.5 Optimización parametro C del modelo SVM lineal ----
+
+# En este caso, el metodo de SVM lineal tiene un unico parametro C que establece la penalizacion 
+# por clasificacion incorrecta, regulando asi el balance entre bias y varianza. En estos modelos
+# el valor optimo del parametro C no se aprende en el proceso de entrenamiento, para estimarlo hay 
+# que recurrir a validacion cruzada.
+svm_cv <- e1071::tune("svm", train.x =  matriz_tfidf_train,
+                      train.y = as.factor(tweets_train$autor),
+                      kernel = "linear", ranges = list(cost = c(0.1, 0.5, 1, 2.5, 5)))
+summary(svm_cv)
+
+# Lo visualizamos graficamente
+ggplot(data = svm_cv$performances, aes(x = cost, y = error)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = error - dispersion, ymax = error + dispersion)) +
+  theme_bw()
+
+# Acorde al error estimado por validacion cruzada, el valor optimo del parametro C es 0.5. 
+# Luego, se tiene que reajustar el modelo con este valor.
+modelo_svm <- svm(x = matriz_tfidf_train, y = as.factor(tweets_train$autor),
+                  kernel = "linear", cost = 0.5, scale = TRUE)
+predicciones <- predict(object = modelo_svm, newdata = matriz_tfidf_test)
+table(observado = tweets_test$autor, predicho = predicciones)
+
+# Empleando un modelo de SVM lineal con parametro C = 0.5 se consigue un porcentaje de error del 7.97%. 
+# Se trata de un porcentaje de error bajo. Tambien  se podria comparar con otros modelos de clasificación 
+# como pueden ser SVM no lineales o Random Forest para ver si obtendriamos mejores resultados. En este caso 
+# lo dejaremos para un futuro.
+clasificaciones_erroneas <- sum(tweets_test$autor != predicciones)
+error <- 100 * mean(tweets_test$autor != predicciones)
+paste("Número de clasificaciones incorrectas =", clasificaciones_erroneas)
+paste("Porcentaje de error =", round(error,2), "%")
+
+# Veamos un segundo ejemplo en el que en lugar de ver el error que cometeriamos a la hora de asignar 
+# un tweet a un autor nos vamos a centrar en identificar los tweets positivos y su porcentaje. Para ello, 
+# tendreis que cargar el fichero con los datos de diferentes tweets del mismo politico de referencia que 
+# en los casos anteriores.
+source("train_twitter.R")
+View(train)
+
+# En este caso creamos una funcion para automatizar el proceso de 'aprendizaje supervisado'
+aprendizaje_computacional<-function(politico,geocode,n){
+  
+  # Nos conectamos a la API de twitter y descargamos los tweets 
+  search_tw <- search_tweets(politico, geocode = geocode ,n=n, include_rts = FALSE)
+  
+  # Extraemos los tweets
+  text <- search_tw$text
+  
+  # Reemplazamos por vacio todo lo que no se encuentre dentro de los corchetes
+  text <- str_replace_all(text, "[^0-9a-zA-Z???????????????????????????? ]", "") 
+  
+  # Creamos un data frame con dos columnas
+  test <- data.frame(text,sentiment=9) 
+  
+  # Unimos por filas dos data frame, es decir, la tabla de entrenamiento con la de test
+  tweets <- rbind(train,test) 
+  
+  # Definimos el conjunto de datos que vamos a analizar
+  mach_text <- tweets$text
+  mach_dataframe <- data.frame(doc_id=paste("doc_",c(1:length(mach_text))), 
+                               text=mach_text,
+                               stringsAsFactors = FALSE)
+  
+  # Reemplazamos las palabras a minusculas
+  mach_dataframe$text <- tolower(mach_dataframe$text) 
+  mach_dataframe <- DataframeSource(mach_dataframe)
+  
+  # Creamos un corpus a partir de los textos
+  corpus_tw <- Corpus(mach_dataframe) 
+  
+  # Eliminamos las stopwords, excepto "no"(16) y "si"(29)
+  corpus_tw <- tm_map(corpus_tw, removeWords, c("rt ",stopwords("spanish")[c(-16,-29)])) 
+  
+  # Realizamos un stemming en un documento de texto utilizando el algoritmo de Porter
+  corpus_tw <- tm_map(corpus_tw, stemDocument, language = "spanish") 
+  
+  # Transformamos el corpus a una matriz de termino-documento.
+  frequencies <- DocumentTermMatrix(corpus_tw) 
+  
+  # Encontramos terminos frecuentes en una matriz de termino-documento donde la frecuencia minima esta dada por lowfreq
+  findFreqTerms(frequencies,lowfreq = 10)  
+  
+  # Nos quedamos con las palabras que tienen por lo menos un 0.5% de frecuencia
+  sparse <- removeSparseTerms(frequencies,0.995) 
+  
+  # Lo convertimos a data frame
+  sparse <- as.data.frame(as.matrix(sparse)) 
+  
+  # Asignamos el sentimiento del train y test (para el test es 9 porque no tiene asignado el sentimiento)
+  sparse$sentiment <- tweets$sentiment 
+  
+  # Observamos la estructura de la matriz
+  sparse[1:10,1:10] 
+  table(sparse$sentiment)
+  
+  # Creamos la matriz de entrenamiento
+  tweet_train <- sparse[1:nrow(train),] 
+  table(tweet_train$sentiment)
+  
+  # Como el conjunto de palabras en el train y en el test no son iguales, creamos un vector de 
+  # palabras en el train con frecuencia mayor a cero y asignamos ese conjunto de palabras en el test
+  col_name <- data.frame(freq=colSums(tweet_train))
+  col_name$words <- row.names(col_name)
+  col_name <- col_name[col_name$freq!=0,]
+  col_name <- col_name$words
+  
+  # Filtramos las palabras del train cuya frecuencia sea mayor que cero en toda la matriz
+  sparse <- sparse[,col_name] 
+  
+  # Matriz de entrenamiento con un conjunto de palabras mas frecuente
+  tweet_train <- sparse[1:nrow(train),] 
+  table(tweet_train$sentiment)
+  
+  # Matriz de test con un conjunto de palabras mas frecuente
+  tweet_test<-sparse[(nrow(train)+1):nrow(sparse),] 
+  table(tweet_test$sentiment)
+  
+  tweet_train$sentiment <- as.factor(tweet_train$sentiment)
+  levels(tweet_train$sentiment)
+  
+  # Aplicamos el clasificador Support Vector Machine (SVM) 
+  svm_train <- svm(sentiment~.,data=tweet_train) 
+  summary(svm_train)
+  
+  # Haciendo predicciones con los datos de entrenamiento
+  prediction <- predict(svm_train,newdata = tweet_train) 
+  
+  # Generando la matriz de confusion para conocer el Accuracy
+  confusionMatrix(as.factor(tweet_train$sentiment),prediction) 
+  
+  # Nos devuelve el porcentaje relativo de tweets positivos
+  prediction      <- predict(svm_train,newdata = tweet_test)
+  test$prediction <- prediction
+  table(test$prediction)
+  return(mean(test$prediction==1)) 
+}
+
+# Finalmente aplicamos nuestra funcion a un caso particular
+politico <- "Pedro Sanchez"
+geocode <- '40.417764,-3.7058457,650km'
+n <- 100
+
+# La salida nos proporciona la tasa de tweets positivos. Os recomiendo que hagais varias pruebas
+# y modificaciones en la funcion para obtener otro tipo de info.
+out<-aprendizaje_computacional(politico = politico,geocode = geocode, n=n)
+
+
+```
+
